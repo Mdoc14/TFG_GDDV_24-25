@@ -4,7 +4,7 @@
 PlayerSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 28
-  productGUID: d7523f745fdf8eb4d95fd562fcba33e8
+  productGUID: dd78bb0bde92a1a4d998e28da2429571
   AndroidProfiler: 0
   AndroidFilterTouchesWhenObscured: 0
   AndroidEnableSustainedPerformanceMode: 0
@@ -850,7 +850,7 @@ PlayerSettings:
     tvOS: 1
   incrementalIl2cppBuild: {}
   suppressCommonWarnings: 1
-  allowUnsafeCode: 0
+  allowUnsafeCode: 1
   useDeterministicCompilation: 1
   additionalIl2CppArgs: 
   scriptingRuntimeVersion: 1
@@ -938,10 +938,10 @@ PlayerSettings:
   captureStartupLogs: {}
   activeInputHandler: 2
   windowsGamepadBackendHint: 0
-  cloudProjectId: 67295e07-4809-4fab-a915-46b4ee0b328f
+  cloudProjectId: 121b529f-f8de-49b5-b12b-a18a252eaf1d
   framebufferDepthMemorylessMode: 0
   qualitySettingsNames: []
-  projectName: TFG_GDDV 2025-02-12_13-51-52
+  projectName: TFG_GDDV 2025-03-04_17-48-25
   organizationId: mdoc15
   cloudEnabled: 0
   legacyClampBlendShapeWeights: 0
