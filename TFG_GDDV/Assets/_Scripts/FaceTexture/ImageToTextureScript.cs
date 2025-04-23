@@ -1,11 +1,12 @@
-﻿using OpenCvSharp;
+﻿using OpenCVForUnity.CoreModule;
+using OpenCVForUnity.UnityUtils;
 using System.IO;
 using UnityEngine;
 using UnityEngine.UI;
 
 public class ImageToTextureScript : MonoBehaviour
 {
-    [SerializeField] string imagePath;
+    /*[SerializeField] string imagePath;
     public MeshRenderer modelRenderer;
     public void GetImagePathFromLoad() // Función que guarda el path de la imagen cargada en una variable
     {
@@ -165,5 +166,5 @@ public class ImageToTextureScript : MonoBehaviour
         return texture;
     }
 
-
+    */
 }
