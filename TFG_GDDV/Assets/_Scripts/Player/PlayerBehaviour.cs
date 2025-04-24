@@ -21,15 +21,18 @@ public class PlayerBehaviour : NetworkBehaviour
     public CinemachineCamera cam;               // Referencia a la cámara del jugador
     private CharacterController controller;     // Referencia al CharacterController para el movimiento
 
+    private bool isInteracting = false;          // Flag para controlar la interacción
+    private IInteractable currentInteractable;         // Referencia al objeto interactuable actual
+
     public override void OnNetworkSpawn()
     {
-        cam = GetComponentInChildren<CinemachineCamera>();   
-        controller = GetComponent<CharacterController>();     
+        cam = GetComponentInChildren<CinemachineCamera>();
+        controller = GetComponent<CharacterController>();
 
         if (!IsOwner)
         {
             cam.enabled = false;                            // Se deshabilita la cámara para otros jugadores
-            GetComponent<PlayerInput>().enabled = false;    
+            GetComponent<PlayerInput>().enabled = false;
         }
     }
 
@@ -41,16 +44,30 @@ public class PlayerBehaviour : NetworkBehaviour
 
     private void Update()
     {
+        if (!IsOwner) return;
+
         if (Input.GetKeyDown(KeyCode.Escape))
         {
-            Cursor.lockState = CursorLockMode.None;  
-            Cursor.visible = true;                   
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
         }
 
-        if (IsOwner)
+
+        HandleMovement();   // Se gestiona el movimiento del personaje
+        HandleRotation();   // Se gestiona la rotación del personaje y la cámara
+        if (CheckForInteractable())
         {
-            HandleMovement();   // Se gestiona el movimiento del personaje
-            HandleRotation();   // Se gestiona la rotación del personaje y la cámara
+            Debug.Log("Interactable found");  
+            if (isInteracting && currentInteractable != null)
+            {
+                currentInteractable.Interact();  // Se llama al método Interact del objeto interactuable
+                isInteracting = false;  // Se resetea el flag de interacción
+            }
+        }
+        else
+        {
+            Debug.Log("No interactable found");
+            currentInteractable = null;  // Se resetea el objeto interactuable si no hay ninguno en el campo de visión
         }
     }
 
@@ -70,6 +87,26 @@ public class PlayerBehaviour : NetworkBehaviour
         cam.transform.localRotation = Quaternion.Euler(currentRotationX, 0f, 0f);  // Se aplica la rotación en X a la cámara
     }
 
+    private bool CheckForInteractable()
+    {
+        Ray ray = new Ray(cam.transform.position, cam.transform.forward);
+        if (Physics.Raycast(ray, out RaycastHit hit, 3f))
+        {
+            Debug.DrawRay(ray.origin, ray.direction * 3f, Color.red);  // Se dibuja un rayo en la escena para depuración
+            Debug.Log("Raycast hit: " + hit.collider.name);  // Se imprime el nombre del objeto golpeado por el rayo
+            if (hit.collider.CompareTag("interactable"))
+            {
+                IInteractable interactable = hit.collider.GetComponent<IInteractable>();
+                if (interactable != null)
+                {
+                    currentInteractable = interactable;
+                    return true;  // Se encuentra un objeto interactuable
+                }
+            }
+        }
+        return false;
+    }
+
     public void Move(InputAction.CallbackContext context)
     {
         if (!IsOwner) return;  // Se asegura de que solo el propietario del personaje pueda moverse
@@ -83,5 +120,13 @@ public class PlayerBehaviour : NetworkBehaviour
         Vector2 input = context.ReadValue<Vector2>();  // Se obtiene la entrada del ratón o joystick
         targetRotationY += input.x * sensitivity;  // Se actualiza la rotación en el eje Y
         targetRotationX -= input.y * sensitivity;  // Se actualiza la inclinación en el eje X
+    }
+
+    public void Interact(InputAction.CallbackContext context)
+    {
+        if (!IsOwner) return;  // Se asegura de que solo el propietario interactúe
+        bool input = context.ReadValueAsButton();  // Se obtiene la entrada del teclado
+        Debug.Log("Interact pressed: " + input);  // Se imprime en consola si se presionó el botón de interacción
+        isInteracting = input;  // Se actualiza el estado de interacción
     }
 }
