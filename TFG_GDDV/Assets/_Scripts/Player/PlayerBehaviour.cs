@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using Unity.Cinemachine;
 using Unity.Netcode;
+using UnityEngine.UI;
 
 public class PlayerBehaviour : NetworkBehaviour
 {
@@ -21,8 +22,12 @@ public class PlayerBehaviour : NetworkBehaviour
     public CinemachineCamera cam;               // Referencia a la cámara del jugador
     private CharacterController controller;     // Referencia al CharacterController para el movimiento
 
-    private bool isInteracting = false;          // Flag para controlar la interacción
-    private IInteractable currentInteractable;         // Referencia al objeto interactuable actual
+    private bool isInteracting = false;         // Flag para controlar la interacción
+    private IInteractable currentInteractable;  // Referencia al objeto interactuable actual
+    private GameObject interactKeyHint;         // Referencia al objeto de la UI de la tecla de interacción
+    private RectTransform crosshairRectTransform;             // Referencia al objeto de la UI del crosshair
+    private Image crosshairUI;             // Referencia al objeto de la UI del crosshair
+    Color crosshairColor;  // Obtén el color actual del crosshair
 
     public override void OnNetworkSpawn()
     {
@@ -40,6 +45,10 @@ public class PlayerBehaviour : NetworkBehaviour
     {
         Cursor.lockState = CursorLockMode.Locked;    // Se bloquea el cursor en el centro de la pantalla
         Cursor.visible = false;                      // Se oculta el cursor
+        interactKeyHint = transform.Find("PlayerUI/InteractButton").gameObject;
+        crosshairRectTransform = transform.Find("PlayerUI/Crosshair").gameObject.GetComponent<RectTransform>();
+        crosshairUI = transform.Find("PlayerUI/Crosshair").gameObject.GetComponent<Image>();
+        crosshairColor = crosshairUI.color;
     }
 
     private void Update()
@@ -57,7 +66,11 @@ public class PlayerBehaviour : NetworkBehaviour
         HandleRotation();   // Se gestiona la rotación del personaje y la cámara
         if (CheckForInteractable())
         {
-            Debug.Log("Interactable found");  
+            Debug.Log("Interactable found");
+            interactKeyHint.SetActive(true);  // Se activa el botón de interacción si se encuentra un objeto interactuable
+            crosshairColor.a = 0.8f;                   // Modifica la propiedad 'a' (alfa)
+            crosshairUI.color = crosshairColor;   // Se aplica el nuevo color al crosshair
+            crosshairRectTransform.localScale = new Vector3(1.5f, 1.5f, 1.5f); // Se aumenta el tamaño del crosshair
             if (isInteracting && currentInteractable != null)
             {
                 currentInteractable.Interact();  // Se llama al método Interact del objeto interactuable
@@ -66,7 +79,11 @@ public class PlayerBehaviour : NetworkBehaviour
         }
         else
         {
-            Debug.Log("No interactable found");
+            interactKeyHint.SetActive(false);  // Se desactiva el botón de interacción si no se encuentra un objeto interactuable
+            transform.Find("PlayerUI/InteractButton").gameObject.SetActive(false);
+            crosshairColor.a = 0.4f;                   // Modifica la propiedad 'a' (alfa)
+            crosshairUI.color = crosshairColor;   // Se aplica el nuevo color al crosshair
+            crosshairRectTransform.localScale = new Vector3(1f, 1f, 1f); // Se resetea el tamaño del crosshair
             currentInteractable = null;  // Se resetea el objeto interactuable si no hay ninguno en el campo de visión
         }
     }
@@ -93,7 +110,6 @@ public class PlayerBehaviour : NetworkBehaviour
         if (Physics.Raycast(ray, out RaycastHit hit, 3f))
         {
             Debug.DrawRay(ray.origin, ray.direction * 3f, Color.red);  // Se dibuja un rayo en la escena para depuración
-            Debug.Log("Raycast hit: " + hit.collider.name);  // Se imprime el nombre del objeto golpeado por el rayo
             if (hit.collider.CompareTag("interactable"))
             {
                 IInteractable interactable = hit.collider.GetComponent<IInteractable>();
@@ -126,7 +142,6 @@ public class PlayerBehaviour : NetworkBehaviour
     {
         if (!IsOwner) return;  // Se asegura de que solo el propietario interactúe
         bool input = context.ReadValueAsButton();  // Se obtiene la entrada del teclado
-        Debug.Log("Interact pressed: " + input);  // Se imprime en consola si se presionó el botón de interacción
         isInteracting = input;  // Se actualiza el estado de interacción
     }
 }
