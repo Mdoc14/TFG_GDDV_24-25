@@ -19,13 +19,22 @@ public class LoadScreen : MonoBehaviour
     }
     void Update()
     {
-        if (GameObject.FindGameObjectsWithTag("Player") == null) return;
-        foreach (GameObject player in GameObject.FindGameObjectsWithTag("Player"))
+        GameObject[] players = GameObject.FindGameObjectsWithTag("Player");
+
+        foreach (GameObject player in players)
         {
-            if (!player.GetComponentInChildren<CinemachineCamera>().enabled) continue;
-            gameObject.SetActive(false);
+            var netObject = player.GetComponent<Unity.Netcode.NetworkObject>();
+            if (netObject != null && netObject.IsOwner)
+            {
+                Camera playerCam = player.GetComponentInChildren<Camera>(true); // Incluye cámaras desactivadas
+                if (playerCam != null && playerCam.enabled)
+                {
+                    gameObject.SetActive(false); // Oculta la pantalla de carga
+                }
+            }
         }
     }
+
 
     IEnumerator TextAnimation()
     {

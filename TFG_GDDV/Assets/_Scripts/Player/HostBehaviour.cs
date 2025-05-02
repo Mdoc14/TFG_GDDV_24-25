@@ -3,8 +3,9 @@ using UnityEngine.InputSystem;
 using Unity.Cinemachine;
 using Unity.Netcode;
 using UnityEngine.UI;
+using Unity.VisualScripting;
 
-public class PlayerBehaviour : NetworkBehaviour
+public class HostBehaviour : NetworkBehaviour
 {
     public float moveSpeed = 5f;                // Velocidad de movimiento del jugador
     public float sensitivity = 0.3f;            // Sensibilidad del ratón para mirar alrededor
@@ -19,7 +20,7 @@ public class PlayerBehaviour : NetworkBehaviour
     private float rotationVelocityY = 0f;       // Velocidad de interpolación en el eje Y para suavizado
     private float rotationVelocityX = 0f;       // Velocidad de interpolación en el eje X para suavizado
 
-    public CinemachineCamera cam;               // Referencia a la cámara del jugador
+    public Camera cam;               // Referencia a la cámara del jugador
     private CharacterController controller;     // Referencia al CharacterController para el movimiento
 
     private bool isInteracting = false;         // Flag para controlar la interacción
@@ -31,14 +32,25 @@ public class PlayerBehaviour : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
-        cam = GetComponentInChildren<CinemachineCamera>();
+        foreach (Camera camera in GameObject.FindObjectsByType<Camera>(FindObjectsSortMode.None))
+        {
+            if (IsClient && camera.name == "ClientCamera")
+            {
+                cam = camera;
+                cam.gameObject.tag = "MainCamera"; 
+                break;
+            }
+            if (IsHost && camera.name == "HostCamera")
+            {
+                cam = camera;
+                break;
+            }
+            camera.gameObject.tag = "Untagged"; 
+            camera.gameObject.SetActive(false); // Desactiva todas las cámaras que no sean la del cliente o el host en sus respectivos runtimes
+        }
+        
         controller = GetComponent<CharacterController>();
 
-        if (!IsOwner)
-        {
-            cam.enabled = false;                            // Se deshabilita la cámara para otros jugadores
-            GetComponent<PlayerInput>().enabled = false;
-        }
     }
 
     private void Awake()
@@ -144,4 +156,6 @@ public class PlayerBehaviour : NetworkBehaviour
         bool input = context.ReadValueAsButton();  // Se obtiene la entrada del teclado
         isInteracting = input;  // Se actualiza el estado de interacción
     }
+
+    
 }
