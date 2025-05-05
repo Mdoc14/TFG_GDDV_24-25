@@ -32,23 +32,7 @@ public class HostBehaviour : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
-        foreach (Camera camera in GameObject.FindObjectsByType<Camera>(FindObjectsSortMode.None))
-        {
-            if (IsClient && camera.name == "ClientCamera")
-            {
-                cam = camera;
-                cam.gameObject.tag = "MainCamera"; 
-                break;
-            }
-            if (IsHost && camera.name == "HostCamera")
-            {
-                cam = camera;
-                break;
-            }
-            camera.gameObject.tag = "Untagged"; 
-            camera.gameObject.SetActive(false); // Desactiva todas las cámaras que no sean la del cliente o el host en sus respectivos runtimes
-        }
-        
+               
         controller = GetComponent<CharacterController>();
 
     }
