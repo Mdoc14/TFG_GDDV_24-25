@@ -9,6 +9,7 @@ using System;
 using UnityEngine.InputSystem;
 using TMPro;
 using System.Windows.Forms;
+using System.Linq;
 
 public class InteractableTV : NetworkBehaviour, IInteractable
 {
@@ -39,7 +40,10 @@ public class InteractableTV : NetworkBehaviour, IInteractable
         }
 
         Debug.Log("Host ha ingresado URL: " + url);
-        string fileName = Path.GetFileName(url.Split('?')[0]);
+        // Usa un nombre de archivo basado en la URL codificada (sin caracteres inválidos)
+        string safeName = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(url));
+        safeName = new string(safeName.Where(char.IsLetterOrDigit).ToArray()); // Elimina caracteres raros
+        string fileName = safeName + ".mp4";
         if (!fileName.EndsWith(".mp4"))
         {
             fileName += ".mp4"; // Si no tiene extensión .mp4, la agregamos manualmente
