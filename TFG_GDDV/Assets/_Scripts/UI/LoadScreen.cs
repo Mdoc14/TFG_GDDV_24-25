@@ -1,48 +1,50 @@
-﻿using System.Collections;
-using System.Windows.Forms;
+﻿using UnityEngine;
 using TMPro;
-using Unity.Cinemachine;
-using Unity.VisualScripting;
-using UnityEngine;
 
 public class LoadScreen : MonoBehaviour
 {
     public TextMeshProUGUI loadingText;
-    public float animationSpeed = 0.5f; 
+    public float animationSpeed = 0.5f;
 
     private string baseText = "Cargando";
     private int state = 0;
 
-    void Awake()
+    private Camera localPlayerCam;
+
+    void Start()
     {
         StartCoroutine(TextAnimation());
     }
+
     void Update()
     {
-        GameObject[] players = GameObject.FindGameObjectsWithTag("Player");
-
-        foreach (GameObject player in players)
+        if (localPlayerCam == null)
         {
-            var netObject = player.GetComponent<Unity.Netcode.NetworkObject>();
-            if (netObject != null && netObject.IsOwner)
+            GameObject[] players = GameObject.FindGameObjectsWithTag("Player");
+            foreach (GameObject player in players)
             {
-                Camera playerCam = player.GetComponentInChildren<Camera>(true); // Incluye cámaras desactivadas
-                if (playerCam != null && playerCam.enabled)
+                var netObj = player.GetComponent<Unity.Netcode.NetworkObject>();
+                if (netObj != null && netObj.IsOwner)
                 {
-                    gameObject.SetActive(false); // Oculta la pantalla de carga
+                    localPlayerCam = player.GetComponentInChildren<Camera>(true);
                 }
             }
         }
+
+        // Usamos un criterio más estable para saber si la cámara ya está "lista"
+        if (localPlayerCam != null && localPlayerCam.targetTexture == null && localPlayerCam.enabled)
+        {
+            // Oculta la pantalla de carga
+            gameObject.SetActive(false);
+        }
     }
 
-
-    IEnumerator TextAnimation()
+    System.Collections.IEnumerator TextAnimation()
     {
         while (true)
         {
             loadingText.text = baseText + new string('.', state);
-            state = (state + 1) % 4; 
-
+            state = (state + 1) % 4;
             yield return new WaitForSeconds(animationSpeed);
         }
     }

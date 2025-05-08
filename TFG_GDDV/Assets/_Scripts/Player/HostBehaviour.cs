@@ -27,12 +27,13 @@ public class HostBehaviour : NetworkBehaviour
     private IInteractable currentInteractable;  // Referencia al objeto interactuable actual
     private GameObject interactKeyHint;         // Referencia al objeto de la UI de la tecla de interacción
     private RectTransform crosshairRectTransform;             // Referencia al objeto de la UI del crosshair
+    public RectTransform customizerUIRectTransform;             // Referencia al objeto de la UI de customización de avatar
     private Image crosshairUI;             // Referencia al objeto de la UI del crosshair
     Color crosshairColor;  // Obtén el color actual del crosshair
 
     public override void OnNetworkSpawn()
     {
-               
+
         controller = GetComponent<CharacterController>();
 
     }
@@ -141,5 +142,32 @@ public class HostBehaviour : NetworkBehaviour
         isInteracting = input;  // Se actualiza el estado de interacción
     }
 
-    
+    public void OpenCustomUI(InputAction.CallbackContext context)
+    {
+        if (!IsOwner) return;  // Se asegura de que solo el propietario abra la UI
+        if (context.ReadValueAsButton())
+        {
+            customizerUIRectTransform.gameObject.SetActive(true);  // Se activa o desactiva la UI de customización
+
+            Cursor.lockState = CursorLockMode.None;  // Se desbloquea el cursor
+            Cursor.visible = true;  // Se muestra el cursor
+
+            this.GetComponent<PlayerInput>().SwitchCurrentActionMap("CustomizerUI");
+        }
+    }
+    public void CloseCustomUI(InputAction.CallbackContext context)
+    {
+        if (!IsOwner) return;  // Se asegura de que solo el propietario abra la UI
+        if (context.ReadValueAsButton())
+        {
+            customizerUIRectTransform.gameObject.SetActive(false);  // Se activa o desactiva la UI de customización
+
+            Cursor.lockState = CursorLockMode.Locked;  // Se bloquea el cursor
+            Cursor.visible = false;  // Se oculta el cursor
+
+            this.GetComponent<PlayerInput>().SwitchCurrentActionMap("Player");  // Se habilita o deshabilita el PlayerInput según la UI de customización
+        }
+    }
+
+
 }
