@@ -1174,6 +1174,7 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   myCamera: {fileID: 1767192439}
   myAudio: {fileID: 1767192437}
+  hostUI: {fileID: 0}
 --- !u!1 &1787516059220952802
 GameObject:
   m_ObjectHideFlags: 0
