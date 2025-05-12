@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using TMPro;
+using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -43,11 +44,10 @@ public class CustomizationOptions
     [HideInInspector] public int currentLeftHand = -1;
 }
 
-public class CharacterCustomizer : MonoBehaviour
+public class CharacterCustomizer : NetworkBehaviour
 {
 
     public RectTransform customizationUI;
-    private bool modelIsSet = false;
 
     [Header("Container of buttons")]
     public GameObject categoriesContent;
@@ -66,13 +66,33 @@ public class CharacterCustomizer : MonoBehaviour
     [Header("Default sprite (empty option)")]
     public Sprite emptySprite;
 
-    private CustomizationOptions currentOptions;
+    public CustomizationOptions currentOptions;
     private List<Button> partsButtons;
     private int activePartIndex = -1;
 
-    private void Update()
+    private NetworkVariable<CharacterData> maleData = new(writePerm: NetworkVariableWritePermission.Server);
+    private NetworkVariable<CharacterData> femaleData = new(writePerm: NetworkVariableWritePermission.Server);
+    private NetworkVariable<CharacterData> maleCustomData = new(writePerm: NetworkVariableWritePermission.Server);
+    private NetworkVariable<CharacterData> femaleCustomData = new(writePerm: NetworkVariableWritePermission.Server);
+
+    public override void OnNetworkSpawn()
     {
-        if(customizationUI.gameObject.activeSelf && !modelIsSet)
+        if (IsServer || IsClient)
+        {
+            maleData.OnValueChanged += OnMaleDataChanged;
+            femaleData.OnValueChanged += OnFemaleDataChanged;
+            maleCustomData.OnValueChanged += OnMaleCustomDataChanged;
+            femaleCustomData.OnValueChanged += OnFemaleCustomDataChanged;
+        }
+
+        // Esto es nuevo:
+        ApplyCharacterData(maleOptions, maleData.Value);
+        ApplyCharacterData(femaleOptions, femaleData.Value);
+        ApplyCharacterData(maleCustomOptions, maleCustomData.Value);
+        ApplyCharacterData(femaleCustomOptions, femaleCustomData.Value);
+
+        // Esto solo si eres owner
+        if (IsOwner)
         {
             InitializeCustomizationOptions(maleOptions);
             InitializeCustomizationOptions(femaleOptions);
@@ -86,9 +106,33 @@ public class CharacterCustomizer : MonoBehaviour
 
             currentOptions = maleOptions;
             SetModelType("male");
-            modelIsSet = true;
+
+            LoadAllCustomization();
+            SubmitCustomizationServerRpc(
+                ToCharacterData(maleOptions),
+                ToCharacterData(femaleOptions),
+                ToCharacterData(maleCustomOptions),
+                ToCharacterData(femaleCustomOptions)
+            );
+
+            SetModelClientRPC(currentOptions.modelType);
         }
     }
+
+
+    private void OnClientConnected(ulong clientId)
+    {
+        if (clientId == NetworkManager.Singleton.LocalClientId)
+        {
+            // Cargamos la personalización una vez conectado
+            LoadAllCustomization();
+
+            // Ya no hace falta el callback
+            NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
+        }
+    }
+
+    
 
     private void InitializeCustomizationOptions(CustomizationOptions options)
     {
@@ -106,6 +150,11 @@ public class CharacterCustomizer : MonoBehaviour
         options.currentEarring = GetActiveIndex(options.earrings);
         options.currentRightHand = GetActiveIndex(options.rightHands);
         options.currentLeftHand = GetActiveIndex(options.leftHands);
+
+        if (!PlayerPrefs.HasKey($"{options.modelType}_hat"))
+        {
+            SaveCustomization(options);
+        }
     }
 
     private int GetActiveIndex(List<GameObject> optionsList)
@@ -137,27 +186,31 @@ public class CharacterCustomizer : MonoBehaviour
         switch (modelType)
         {
             case "male":
-                SetCurrentoptions(maleOptions);
+                SetCurrentOptions(maleOptions);
                 break;
             case "female":
-                SetCurrentoptions(femaleOptions);
+                SetCurrentOptions(femaleOptions);
                 break;
             case "customMale":
-                SetCurrentoptions(maleCustomOptions);
+                SetCurrentOptions(maleCustomOptions);
                 break;
             case "customFemale":
-                SetCurrentoptions(femaleCustomOptions);
+                SetCurrentOptions(femaleCustomOptions);
                 break;
         }
 
         GenerateCategoryButtons(currentOptions);
     }
 
-    public void SetCurrentoptions(CustomizationOptions newOptions)
+    public void SetCurrentOptions(CustomizationOptions newOptions)
     {
-        currentOptions.modelGameObject.SetActive(false);
+        if (currentOptions != null && currentOptions.modelGameObject != null)
+            currentOptions.modelGameObject.SetActive(false);
+
         currentOptions = newOptions;
-        currentOptions.modelGameObject.SetActive(true);
+
+        if (currentOptions != null && currentOptions.modelGameObject != null)
+            currentOptions.modelGameObject.SetActive(true);
     }
 
     private void ClearUI(GameObject content)
@@ -227,11 +280,29 @@ public class CharacterCustomizer : MonoBehaviour
                 if (activePartIndex >= 0 && activePartIndex < parts.Count)
                 {
                     parts[activePartIndex].SetActive(false);
-                    partsButtons[activePartIndex + 1].interactable = true; // +1 por el botón "X"
+                    partsButtons[activePartIndex + 1].interactable = true;
                 }
+
                 activePartIndex = -1;
                 emptyButtonComp.interactable = false;
+
+                // Añade esto para actualizar el índice en currentOptions
+                if (parts == currentOptions.hats) currentOptions.currentHat = -1;
+                else if (parts == currentOptions.headphones) currentOptions.currentHeadphone = -1;
+                else if (parts == currentOptions.hair) currentOptions.currentHair = -1;
+                else if (parts == currentOptions.shirts) currentOptions.currentShirt = -1;
+                else if (parts == currentOptions.pants) currentOptions.currentPants = -1;
+                else if (parts == currentOptions.shoes) currentOptions.currentShoes = -1;
+                else if (parts == currentOptions.watches) currentOptions.currentWatch = -1;
+                else if (parts == currentOptions.beards) currentOptions.currentBeard = -1;
+                else if (parts == currentOptions.eyebrows) currentOptions.currentEyebrow = -1;
+                else if (parts == currentOptions.glasses) currentOptions.currentGlasses = -1;
+                else if (parts == currentOptions.mask) currentOptions.currentMask = -1;
+                else if (parts == currentOptions.earrings) currentOptions.currentEarring = -1;
+                else if (parts == currentOptions.rightHands) currentOptions.currentRightHand = -1;
+                else if (parts == currentOptions.leftHands) currentOptions.currentLeftHand = -1;
             });
+
         }
 
         for (int i = 0; i < parts.Count; i++)
@@ -276,6 +347,23 @@ public class CharacterCustomizer : MonoBehaviour
 
         activePartIndex = indexToActivate;
 
+        // Actualiza el índice en currentOptions 
+        if (list == currentOptions.hats) currentOptions.currentHat = indexToActivate;
+        else if (list == currentOptions.headphones) currentOptions.currentHeadphone = indexToActivate;
+        else if (list == currentOptions.hair) currentOptions.currentHair = indexToActivate;
+        else if (list == currentOptions.shirts) currentOptions.currentShirt = indexToActivate;
+        else if (list == currentOptions.pants) currentOptions.currentPants = indexToActivate;
+        else if (list == currentOptions.shoes) currentOptions.currentShoes = indexToActivate;
+        else if (list == currentOptions.watches) currentOptions.currentWatch = indexToActivate;
+        else if (list == currentOptions.beards) currentOptions.currentBeard = indexToActivate;
+        else if (list == currentOptions.eyebrows) currentOptions.currentEyebrow = indexToActivate;
+        else if (list == currentOptions.glasses) currentOptions.currentGlasses = indexToActivate;
+        else if (list == currentOptions.mask) currentOptions.currentMask = indexToActivate;
+        else if (list == currentOptions.earrings) currentOptions.currentEarring = indexToActivate;
+        else if (list == currentOptions.rightHands) currentOptions.currentRightHand = indexToActivate;
+        else if (list == currentOptions.leftHands) currentOptions.currentLeftHand = indexToActivate;
+
+
     }
 
     private bool CategoryAllowsEmptyOption(List<GameObject> parts)
@@ -292,6 +380,217 @@ public class CharacterCustomizer : MonoBehaviour
                parts == currentOptions.earrings;
     }
 
+    public void SaveAllCustomization()
+    {
+        Debug.Log("Saving customization...");
+        SaveCustomization(maleOptions);
+        SaveCustomization(femaleOptions);
+        SaveCustomization(maleCustomOptions);
+        SaveCustomization(femaleCustomOptions);
+        SubmitCustomizationServerRpc(ToCharacterData(maleOptions), ToCharacterData(femaleOptions), ToCharacterData(maleCustomOptions), ToCharacterData(femaleCustomOptions));
+        SetModelClientRPC(currentOptions.modelType);
+    }
 
+    public void SaveCustomization(CustomizationOptions options)
+    {
+        string prefix = options.modelType;
+
+        PlayerPrefs.SetInt($"{prefix}_hat", options.currentHat);
+        PlayerPrefs.SetInt($"{prefix}_headphone", options.currentHeadphone);
+        PlayerPrefs.SetInt($"{prefix}_hair", options.currentHair);
+        PlayerPrefs.SetInt($"{prefix}_shirt", options.currentShirt);
+        PlayerPrefs.SetInt($"{prefix}_pants", options.currentPants);
+        PlayerPrefs.SetInt($"{prefix}_shoes", options.currentShoes);
+        PlayerPrefs.SetInt($"{prefix}_watch", options.currentWatch);
+        PlayerPrefs.SetInt($"{prefix}_beard", options.currentBeard);
+        PlayerPrefs.SetInt($"{prefix}_eyebrow", options.currentEyebrow);
+        PlayerPrefs.SetInt($"{prefix}_glasses", options.currentGlasses);
+        PlayerPrefs.SetInt($"{prefix}_mask", options.currentMask);
+        PlayerPrefs.SetInt($"{prefix}_earring", options.currentEarring);
+        PlayerPrefs.SetInt($"{prefix}_rightHand", options.currentRightHand);
+        PlayerPrefs.SetInt($"{prefix}_leftHand", options.currentLeftHand);
+
+
+        PlayerPrefs.Save();
+    }
+
+    public void LoadAllCustomization()
+    {
+        Debug.Log("Loading customization...");
+        LoadCustomization(maleOptions);
+        LoadCustomization(femaleOptions);
+        LoadCustomization(maleCustomOptions);
+        LoadCustomization(femaleCustomOptions);
+        SubmitCustomizationServerRpc(ToCharacterData(maleOptions), ToCharacterData(femaleOptions), ToCharacterData(maleCustomOptions), ToCharacterData(femaleCustomOptions));
+        SetModelClientRPC(currentOptions.modelType);
+    }
+
+    public void LoadCustomization(CustomizationOptions options)
+    {
+        string prefix = options.modelType;
+
+        options.currentHat = PlayerPrefs.GetInt($"{prefix}_hat", -1);
+        options.currentHeadphone = PlayerPrefs.GetInt($"{prefix}_headphone", -1);
+        options.currentHair = PlayerPrefs.GetInt($"{prefix}_hair", -1);
+        options.currentShirt = PlayerPrefs.GetInt($"{prefix}_shirt", 0);
+        options.currentPants = PlayerPrefs.GetInt($"{prefix}_pants", 0);
+        options.currentShoes = PlayerPrefs.GetInt($"{prefix}_shoes", 0);
+        options.currentWatch = PlayerPrefs.GetInt($"{prefix}_watch", -1);
+        options.currentBeard = PlayerPrefs.GetInt($"{prefix}_beard", -1);
+        options.currentEyebrow = PlayerPrefs.GetInt($"{prefix}_eyebrow", -1);
+        options.currentGlasses = PlayerPrefs.GetInt($"{prefix}_glasses", -1);
+        options.currentMask = PlayerPrefs.GetInt($"{prefix}_mask", -1);
+        options.currentEarring = PlayerPrefs.GetInt($"{prefix}_earring", -1);
+        options.currentRightHand = PlayerPrefs.GetInt($"{prefix}_rightHand", 0);
+        options.currentLeftHand = PlayerPrefs.GetInt($"{prefix}_leftHand", 0);
+
+        ApplyCustomization(options);
+
+        options.currentHat = GetActiveIndex(options.hats);
+        options.currentHeadphone = GetActiveIndex(options.headphones);
+        options.currentHair = GetActiveIndex(options.hair);
+        options.currentShirt = GetActiveIndex(options.shirts);
+        options.currentPants = GetActiveIndex(options.pants);
+        options.currentShoes = GetActiveIndex(options.shoes);
+        options.currentWatch = GetActiveIndex(options.watches);
+        options.currentBeard = GetActiveIndex(options.beards);
+        options.currentEyebrow = GetActiveIndex(options.eyebrows);
+        options.currentGlasses = GetActiveIndex(options.glasses);
+        options.currentMask = GetActiveIndex(options.mask);
+        options.currentEarring = GetActiveIndex(options.earrings);
+        options.currentRightHand = GetActiveIndex(options.rightHands);
+        options.currentLeftHand = GetActiveIndex(options.leftHands);
+
+    }
+
+    public void ApplyCustomization(CustomizationOptions options)
+    {
+        ApplyPart(options.hats, options.currentHat);
+        ApplyPart(options.headphones, options.currentHeadphone);
+        ApplyPart(options.hair, options.currentHair);
+        ApplyPart(options.shirts, options.currentShirt);
+        ApplyPart(options.pants, options.currentPants);
+        ApplyPart(options.shoes, options.currentShoes);
+        ApplyPart(options.watches, options.currentWatch);
+        ApplyPart(options.beards, options.currentBeard);
+        ApplyPart(options.eyebrows, options.currentEyebrow);
+        ApplyPart(options.glasses, options.currentGlasses);
+        ApplyPart(options.mask, options.currentMask);
+        ApplyPart(options.earrings, options.currentEarring);
+        ApplyPart(options.rightHands, options.currentRightHand);
+        ApplyPart(options.leftHands, options.currentLeftHand);
+    }
+   
+
+
+    private void ApplyPart(List<GameObject> list, int index)
+    {
+        for (int i = 0; i < list.Count; i++)
+            list[i].SetActive(i == index);
+    }
+
+    //////////////////////////////
+    /// PARTES DE NETCODE
+    //////////////////////////////
+
+    private void OnMaleDataChanged(CharacterData previous, CharacterData current)
+    {
+        ApplyCharacterData(maleOptions, current);
+    }
+    private void OnFemaleDataChanged(CharacterData previous, CharacterData current)
+    {
+        ApplyCharacterData(femaleOptions, current);
+    }
+    private void OnMaleCustomDataChanged(CharacterData previous, CharacterData current)
+    {
+        ApplyCharacterData(maleCustomOptions, current);
+    }
+    private void OnFemaleCustomDataChanged(CharacterData previous, CharacterData current)
+    {
+        ApplyCharacterData(femaleCustomOptions, current);
+    }
+
+    private CharacterData ToCharacterData(CustomizationOptions options)
+    {
+        return new CharacterData
+        {
+            hat = options.currentHat,
+            headphone = options.currentHeadphone,
+            hair = options.currentHair,
+            shirt = options.currentShirt,
+            pants = options.currentPants,
+            shoes = options.currentShoes,
+            watch = options.currentWatch,
+            beard = options.currentBeard,
+            eyebrow = options.currentEyebrow,
+            glasses = options.currentGlasses,
+            mask = options.currentMask,
+            earring = options.currentEarring,
+            rightHand = options.currentRightHand,
+            leftHand = options.currentLeftHand
+        };
+    }
+
+    private void ApplyCharacterData(CustomizationOptions options, CharacterData data)
+    {
+        options.currentHat = data.hat;
+        options.currentHeadphone = data.headphone;
+        options.currentHair = data.hair;
+        options.currentShirt = data.shirt;
+        options.currentPants = data.pants;
+        options.currentShoes = data.shoes;
+        options.currentWatch = data.watch;
+        options.currentBeard = data.beard;
+        options.currentEyebrow = data.eyebrow;
+        options.currentGlasses = data.glasses;
+        options.currentMask = data.mask;
+        options.currentEarring = data.earring;
+        options.currentRightHand = data.rightHand;
+        options.currentLeftHand = data.leftHand;
+
+        Debug.Log($"Applying customization: {options.modelType}");
+        Debug.Log($"Hat: {options.currentHat}, Headphone: {options.currentHeadphone}, Hair: {options.currentHair}, Shirt: {options.currentShirt}, Pants: {options.currentPants}, Shoes: {options.currentShoes}, Watch: {options.currentWatch}, Beard: {options.currentBeard}, Eyebrow: {options.currentEyebrow}, Glasses: {options.currentGlasses}, Mask: {options.currentMask}, Earring: {options.currentEarring}, RightHand: {options.currentRightHand}, LeftHand: {options.currentLeftHand}");
+        ApplyCustomization(options);
+
+    }
+
+    [ServerRpc]
+    public void SubmitCustomizationServerRpc(CharacterData _maleData, CharacterData _femaleData, CharacterData _maleCustomData, CharacterData _femaleCustomData)
+    {
+        maleData.Value = _maleData;
+        femaleData.Value = _femaleData;
+        maleCustomData.Value = _maleCustomData;
+        femaleCustomData.Value = _femaleCustomData;
+    }
+
+    [ClientRpc]
+    public void SetModelClientRPC(string modelType)
+    {
+        SetModelType(modelType);
+    }
 
 }
+
+public struct CharacterData : INetworkSerializable
+{
+    public int hat, headphone, hair, shirt, pants, shoes, watch, beard, eyebrow, glasses, mask, earring, rightHand, leftHand;
+
+    public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
+    {
+        serializer.SerializeValue(ref hat);
+        serializer.SerializeValue(ref headphone);
+        serializer.SerializeValue(ref hair);
+        serializer.SerializeValue(ref shirt);
+        serializer.SerializeValue(ref pants);
+        serializer.SerializeValue(ref shoes);
+        serializer.SerializeValue(ref watch);
+        serializer.SerializeValue(ref beard);
+        serializer.SerializeValue(ref eyebrow);
+        serializer.SerializeValue(ref glasses);
+        serializer.SerializeValue(ref mask);
+        serializer.SerializeValue(ref earring);
+        serializer.SerializeValue(ref rightHand);
+        serializer.SerializeValue(ref leftHand);
+    }
+}
+

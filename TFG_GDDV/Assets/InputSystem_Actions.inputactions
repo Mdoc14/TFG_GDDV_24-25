@@ -253,45 +253,6 @@
                     "isPartOfComposite": false
                 }
             ]
-        },
-        {
-            "name": "CustomizerUI",
-            "id": "936372e0-b1cc-4412-a3d0-0d371a9d206c",
-            "actions": [
-                {
-                    "name": "CloseCustomUI",
-                    "type": "Button",
-                    "id": "8fc391e1-c1e8-4754-9c78-8fd42526c525",
-                    "expectedControlType": "",
-                    "processors": "",
-                    "interactions": "Press",
-                    "initialStateCheck": false
-                }
-            ],
-            "bindings": [
-                {
-                    "name": "",
-                    "id": "e7388201-871b-440b-952d-5db138afc1e5",
-                    "path": "<Keyboard>/tab",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": ";Keyboard&Mouse",
-                    "action": "CloseCustomUI",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                },
-                {
-                    "name": "",
-                    "id": "1199c321-b04e-418c-9d9f-23c303357e79",
-                    "path": "<Gamepad>/buttonWest",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": ";Gamepad",
-                    "action": "CloseCustomUI",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                }
-            ]
         }
     ],
     "controlSchemes": [
