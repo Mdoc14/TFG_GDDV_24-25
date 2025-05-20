@@ -16,8 +16,10 @@ public class InteractableTV : NetworkBehaviour, IInteractable
     [SerializeField] private VideoPlayer videoPlayer;
     [SerializeField] private AudioSource audioSource;
     [SerializeField] private MeshRenderer meshRenderer;
-    [SerializeField] private TMP_InputField urlInputField;
     [SerializeField] private GameObject videoUploaderScreen;
+    [SerializeField] private TMP_InputField urlInputField;
+    [SerializeField] private TextMeshProUGUI errorText;
+    [SerializeField] private TextMeshProUGUI globalErrorText;
     
     private PlayerInput playerInput;
     private GameObject playerUI;
@@ -34,10 +36,16 @@ public class InteractableTV : NetworkBehaviour, IInteractable
 
         if (string.IsNullOrEmpty(url))
         {
-            ShowPopupMessage("La URL ingresada no es válida.");
-            Debug.LogWarning("La URL ingresada está vacía o mal formada.");
+            errorText.text = "La URL ingresada está vacía";
             return; 
         }
+        if (!originalUrl.Contains("drive.google.com"))
+        {
+            errorText.text = "Error procesando la URL de Google Drive. Asegúrate de que sea válida.";
+            return; 
+        }
+        ReturnToGame(); // Regresar al juego y ocultar el input
+        videoUploaderScreen.SetActive(false); // Ocultar la pantalla de carga de video
 
         Debug.Log("Host ha ingresado URL: " + url);
         // Usa un nombre de archivo basado en la URL codificada (sin caracteres inválidos)
@@ -149,17 +157,9 @@ public class InteractableTV : NetworkBehaviour, IInteractable
             UnityWebRequest downloadRequest = UnityWebRequest.Get(url);
             yield return downloadRequest.SendWebRequest();
 
-            if (downloadRequest.result != UnityWebRequest.Result.Success)
+            if (downloadRequest.result != UnityWebRequest.Result.Success || downloadRequest.downloadHandler.data.Length < 1000)
             {
-                Debug.LogError("Error descargando el video: " + downloadRequest.error);
-                ShowPopupMessage("Error al descargar el video.\n¿Es pública la URL?");
-                yield break;
-            }
-
-            if (downloadRequest.downloadHandler.data.Length < 1000)
-            {
-                Debug.LogError("Descarga sospechosa: puede no ser un archivo válido.");
-                ShowPopupMessage("No se pudo descargar el video.\nRevisa que el archivo esté compartido como público en Google Drive.");
+                StartCoroutine(ShowErrorMessageCoroutine("No se pudo descargar el video. Revisa que el archivo esté compartido como público en Google Drive."));
                 yield break;
             }
 
@@ -171,7 +171,6 @@ public class InteractableTV : NetworkBehaviour, IInteractable
             catch (IOException ioEx)
             {
                 Debug.LogError("Error escribiendo archivo: " + ioEx.Message);
-                ShowPopupMessage("Error escribiendo archivo. ¿Está siendo usado?");
                 yield break;
             }
         }
@@ -194,59 +193,6 @@ public class InteractableTV : NetworkBehaviour, IInteractable
         videoPlayer.Prepare();
     }
 
-
-
-    private void ShowPopupMessage(string message)
-    {
-        GameObject popupCanvas = new GameObject("PopupCanvas");
-        popupCanvas.AddComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay;
-        popupCanvas.AddComponent<CanvasScaler>().uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        popupCanvas.AddComponent<GraphicRaycaster>();
-
-        GameObject panel = new GameObject("Panel");
-        panel.transform.SetParent(popupCanvas.transform, false);
-        Image panelImage = panel.AddComponent<Image>();
-        panelImage.color = new Color(0, 0, 0, 0.8f);
-        RectTransform panelRect = panel.GetComponent<RectTransform>();
-        panelRect.sizeDelta = new Vector2(400, 200);
-        panelRect.anchoredPosition = Vector2.zero;
-
-        GameObject textGO = new GameObject("PopupText");
-        textGO.transform.SetParent(panel.transform, false);
-        TMP_Text text = textGO.AddComponent<TextMeshProUGUI>();
-        text.text = message;
-        text.alignment = TextAlignmentOptions.Center;
-        text.fontSize = 24;
-        text.color = Color.white;
-        RectTransform textRect = textGO.GetComponent<RectTransform>();
-        textRect.sizeDelta = new Vector2(380, 160);
-        textRect.anchoredPosition = Vector2.zero;
-
-        GameObject buttonGO = new GameObject("CloseButton");
-        buttonGO.transform.SetParent(panel.transform, false);
-        UnityEngine.UI.Button button = buttonGO.AddComponent<UnityEngine.UI.Button>();
-        Image buttonImage = buttonGO.AddComponent<Image>();
-        buttonImage.color = new Color(1, 1, 1, 0.6f);
-        RectTransform buttonRect = buttonGO.GetComponent<RectTransform>();
-        buttonRect.sizeDelta = new Vector2(100, 40);
-        buttonRect.anchoredPosition = new Vector2(0, -70);
-
-        GameObject buttonTextGO = new GameObject("ButtonText");
-        buttonTextGO.transform.SetParent(buttonGO.transform, false);
-        TMP_Text buttonText = buttonTextGO.AddComponent<TextMeshProUGUI>();
-        buttonText.text = "Cerrar";
-        buttonText.alignment = TextAlignmentOptions.Center;
-        buttonText.fontSize = 20;
-        buttonText.color = Color.black;
-        RectTransform buttonTextRect = buttonTextGO.GetComponent<RectTransform>();
-        buttonTextRect.sizeDelta = new Vector2(100, 40);
-        buttonTextRect.anchoredPosition = Vector2.zero;
-
-        button.onClick.AddListener(() => GameObject.Destroy(popupCanvas));
-    }
-
-
-
     private void OnVideoPrepared(VideoPlayer vp)
     {
         meshRenderer.enabled = true;
@@ -258,7 +204,12 @@ public class InteractableTV : NetworkBehaviour, IInteractable
         meshRenderer.enabled = false;
     }
 
-
+    private IEnumerator ShowErrorMessageCoroutine(string message)
+    {
+        globalErrorText.text = message;
+        yield return new WaitForSeconds(7f);
+        globalErrorText.text = "";
+    }
 
 
     public void Interact()
