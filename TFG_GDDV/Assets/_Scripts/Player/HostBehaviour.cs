@@ -22,13 +22,14 @@ public class HostBehaviour : NetworkBehaviour
 
     public Camera cam;               // Referencia a la cámara del jugador
     private CharacterController controller;     // Referencia al CharacterController para el movimiento
-    private Animator animator;                  // Referencia al Animator para animaciones
+    public Animator animator;                  // Referencia al Animator para animaciones
 
     private bool isInteracting = false;         // Flag para controlar la interacción
     private IInteractable currentInteractable;  // Referencia al objeto interactuable actual
     private GameObject interactKeyHint;         // Referencia al objeto de la UI de la tecla de interacción
     private RectTransform crosshairRectTransform;             // Referencia al objeto de la UI del crosshair
     public RectTransform customizerUIRectTransform;             // Referencia al objeto de la UI de customización de avatar
+    public RectTransform basicGuideUIRectTransform;             // Referencia al objeto de la UI de guía básica
     private Image crosshairUI;             // Referencia al objeto de la UI del crosshair
     Color crosshairColor;  // Obtén el color actual del crosshair
 
@@ -65,7 +66,6 @@ public class HostBehaviour : NetworkBehaviour
         HandleRotation();   // Se gestiona la rotación del personaje y la cámara
         if (CheckForInteractable())
         {
-            Debug.Log("Interactable found");
             interactKeyHint.SetActive(true);  // Se activa el botón de interacción si se encuentra un objeto interactuable
             crosshairColor.a = 0.8f;                   // Modifica la propiedad 'a' (alfa)
             crosshairUI.color = crosshairColor;   // Se aplica el nuevo color al crosshair
@@ -166,16 +166,40 @@ public class HostBehaviour : NetworkBehaviour
 
             Cursor.lockState = CursorLockMode.None;  // Se desbloquea el cursor
             Cursor.visible = true;  // Se muestra el cursor
+            PlayerInput playerInput = GetComponent<PlayerInput>();
+            if (playerInput != null)
+            {
+                playerInput.enabled = false;  // Se desactiva el PlayerInput 
+            }
         }
     }
-    public void CloseCustomUI()
+    public void OpenBasicGuideUI(InputAction.CallbackContext context)
+    {
+        if (!IsOwner) return;
+        if (context.ReadValueAsButton())
+        {
+            basicGuideUIRectTransform.gameObject.SetActive(true);  // Se activa o desactiva la UI de customización
+
+            Cursor.lockState = CursorLockMode.None;  // Se desbloquea el cursor
+            Cursor.visible = true;  // Se muestra el cursor
+            PlayerInput playerInput = GetComponent<PlayerInput>();
+            if (playerInput != null)
+            {
+                playerInput.enabled = false;  // Se desactiva el PlayerInput 
+            }
+        }
+    }
+    public void CloseUIBehaviour()
     {
         if (!IsOwner) return;  // Se asegura de que solo el propietario abra la UI
 
-            Cursor.lockState = CursorLockMode.Locked;  // Se bloquea el cursor
-            Cursor.visible = false;  // Se oculta el cursor
-
+        Cursor.lockState = CursorLockMode.Locked;  // Se bloquea el cursor
+        Cursor.visible = false;  // Se oculta el cursor
+        PlayerInput playerInput = GetComponent<PlayerInput>();
+        if (playerInput != null)
+        {
+            playerInput.enabled = true;  // Se reactiva el PlayerInput
+        }
     }
-
 
 }

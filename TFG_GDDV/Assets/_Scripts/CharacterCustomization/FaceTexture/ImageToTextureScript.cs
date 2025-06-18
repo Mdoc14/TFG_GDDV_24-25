@@ -1,170 +1,168 @@
-﻿using OpenCVForUnity.CoreModule;
+﻿using UnityEngine;
+using OpenCVForUnity.CoreModule;
+using OpenCVForUnity.ImgprocModule;
 using OpenCVForUnity.UnityUtils;
+using OpenCVForUnity.DnnModule;
 using System.IO;
-using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.Rendering;
+using Unity.Netcode;
+using System;
+using Unity.Collections;
+using System.Collections.Generic;
+using UnityEditor.PackageManager;
+using System.Collections;
 
 public class ImageToTextureScript : MonoBehaviour
 {
-    /*[SerializeField] string imagePath;
-    public MeshRenderer modelRenderer;
-    public void GetImagePathFromLoad() // Función que guarda el path de la imagen cargada en una variable
+    private string protoFile = "/models/face/deploy.prototxt";
+    private string modelFile = "/models/face/res10_300x300_ssd_iter_140000.caffemodel";
+    public float confidenceThreshold = 0.6f;
+    public int OUTPUT_SIZE = 1024;
+
+    public void LoadAndProcessImage()
     {
-        imagePath = LoadPhotoScript.PickImagePath();
-        ConvertImageToTexture();
-    }
-
-    public void ConvertImageToTexture()
-    {
-        
-
-        Debug.Log("Convirtiendo textura: " + imagePath);
-
-        if (!File.Exists(imagePath)){ Debug.LogError("No se encontró la imagen: " + imagePath); return;}
-
-        // Cargar la imagen en una Texture2D
-        byte[] imageBytes = File.ReadAllBytes(imagePath); // Convierte la imagen en un array de bytes mediante su path
-        Texture2D initialTexture = new Texture2D(2, 2);
-        if (!initialTexture.LoadImage(imageBytes)) { Debug.LogError("No se pudo cargar la imagen en Texture2D."); return; }
-
-        // Se convierte la Texture2D a Mat
-        Mat img = Texture2DToMat(initialTexture);
-
-        if (img.Empty()) { Debug.LogError("No se pudo convertir la imagen en Mat."); }
-        else { Debug.Log("Imagen convertida a Mat correctamente: " + img.Width + "x" + img.Height); }
-
-        // Se convierte a escala de grises para mejorar la detección del rostro
-        //Mat gray = new Mat();
-        //Cv2.CvtColor(img, gray, ColorConversionCodes.BGR2GRAY);
-        
-        // Se carga el clasificador de caras
-        CascadeClassifier faceCascade = new CascadeClassifier(Application.dataPath + "/OpenCV+Unity/Assets/haar_cascade.xml");
-        if (faceCascade.Empty())
+        string imagePath;
+        try
         {
-            Debug.LogError("No se pudo cargar el clasificador de caras.");
+            imagePath = LoadFileScript.PickImagePath();
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError("Error al cargar la imagen: " + e.Message);
+            return;
+        }
+        if (!File.Exists(imagePath))
+        {
+            Debug.LogError("No se encontró la imagen en el path: " + imagePath);
             return;
         }
 
-        // Detectar caras
-        OpenCvSharp.Rect[] faces = faceCascade.DetectMultiScale(img, 1.1, 5, HaarDetectionType.ScaleImage, new Size(100, 100));
-        if (faces.Length == 0)
+        byte[] bytes = File.ReadAllBytes(imagePath);
+        Texture2D tex = new Texture2D(2, 2);
+        tex.LoadImage(bytes);
+
+        Mat img = new Mat(tex.height, tex.width, CvType.CV_8UC4);
+        Utils.texture2DToMat(tex, img);
+        Imgproc.cvtColor(img, img, Imgproc.COLOR_RGBA2RGB); // DNN solo acepta 3 canales
+
+        string protoPath = Application.streamingAssetsPath + protoFile;
+        string modelPath = Application.streamingAssetsPath + modelFile;
+
+        if (!File.Exists(protoPath) || !File.Exists(modelPath))
         {
-            Debug.LogError("No se detectaron caras en la imagen.");
+            Debug.LogError("No se encontraron los archivos del modelo. Asegúrate de colocarlos en StreamingAssets.");
+            Debug.LogError("Ruta del prototxt: " + protoPath);
+            Debug.LogError("Ruta del modelo: " + modelPath);
             return;
         }
 
-        // Extrae la cara de la imagen original
-        OpenCvSharp.Rect faceRect = faces[0];
-
-        // Ajusta el rectángulo de la cara 
-        int xValue = 40; // Offset de la coordenada X
-        int yValue = -20; // Offset de la coordenada Y
-        int sizeValue = 40;
-        int xPadding = Mathf.Min(xValue, faceRect.X); // Para evitar valores negativos
-        int yPadding = Mathf.Min(yValue, faceRect.Y);
-
-        OpenCvSharp.Rect adjustedFaceRect = new OpenCvSharp.Rect(
-            faceRect.X - xPadding,
-            faceRect.Y - yPadding,
-            faceRect.Width + sizeValue * 2,  // Expandir el tamaño del ancho
-            faceRect.Height + sizeValue * 2  // Expandir el tamaño de la altura
-        );
-
-        // Extraer la cara ajustada
-        Mat faceImg = new Mat(img, adjustedFaceRect);
-
-        Cv2.Rectangle(img, adjustedFaceRect, new Scalar(0, 255, 0), 2);
-
-        // Hacer la imagen cuadrada
-        Mat squareFace = ResizeToSquare(faceImg, 1024);
-
-        // Convertirla a Texture2D para usarla en Unity
-        Texture2D finalTexture = MatToTexture2D(squareFace);
-
-        // Aplicar la textura en un material de un objeto
-        ApplyTexture(finalTexture);
-    }
-
-    Mat ResizeToSquare(Mat src, int size)
-    {
-        // Determina las dimensiones necesarias para ajustar la imagen
-        int maxDim = Mathf.Max(src.Width, src.Height);
-
-        // Crear una nueva imagen cuadrada vacía (rellenada con un color de fondo, como el negro)
-        Mat squareImg = new Mat(new OpenCvSharp.Size(maxDim, maxDim), src.Type(), new Scalar(0, 0, 0, 255));
-
-        // Calcular los desplazamientos
-        int xOffset = (maxDim - src.Width) / 2;
-        int yOffset = (maxDim - src.Height) / 2;
-
-        // Copiar la imagen original en la nueva imagen cuadrada
-        OpenCvSharp.Rect roi = new OpenCvSharp.Rect(xOffset, yOffset, src.Width, src.Height);
-        src.CopyTo(new Mat(squareImg, roi));
-
-        // Asegurarse de que la imagen sea cuadrada
-        Mat resizedMat = new Mat();
-        Cv2.Resize(squareImg, resizedMat, new OpenCvSharp.Size(size, size), 0, 0, InterpolationFlags.Linear);
-
-        return resizedMat;
-    }
-
-    void ApplyTexture(Texture2D texture)
-    {
-        if (modelRenderer != null && texture != null)
+        Net faceNet = Dnn.readNetFromCaffe(protoPath, modelPath);
+        if (faceNet == null)
         {
-            modelRenderer.material.mainTexture = texture;
-            Debug.Log("Textura aplicada correctamente.");
-            this.GetComponent<Image>().sprite = Sprite.Create(texture, new UnityEngine.Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f));
-        }
-        else
-        {
-            Debug.LogError("No se pudo aplicar la textura.");
-        }
-    }
-
-    Mat Texture2DToMat(Texture2D texture) // Este método convierte una textura en Mat para que OpenCV pueda leer la imagen
-    {
-        Color32[] pixels = texture.GetPixels32();
-
-        byte[] data = new byte[pixels.Length * 4]; // Al estar en RGBA necesita 4 canales por pixel
-        for (int i = 0; i < pixels.Length; i++)
-        {
-            data[i * 4] = pixels[i].b;     // Blue
-            data[i * 4 + 1] = pixels[i].g; // Green
-            data[i * 4 + 2] = pixels[i].r; // Red
-            data[i * 4 + 3] = pixels[i].a; // Alpha
+            Debug.LogError("No se pudo cargar el modelo DNN.");
+            return;
         }
 
-        Mat mat = new Mat(texture.height, texture.width, MatType.CV_8UC4, data);
+        Mat inputBlob = Dnn.blobFromImage(img, 1.0, new Size(300, 300), new Scalar(104, 177, 123), false, false);
+        faceNet.setInput(inputBlob);
 
-        return mat;
-    }
-    Texture2D MatToTexture2D(Mat mat)
-    {
-        if (mat.Empty())
+        Mat detections = faceNet.forward();
+
+        int detected = 0;
+        for (int i = 0; i < detections.size(2); i++)
         {
-            Debug.LogError("El Mat está vacío al intentar convertirlo a Texture2D.");
-            return null;
-        }
+            Mat detectionMat = detections.reshape(1, (int)detections.total() / 7);
 
-        // Crear una textura del tamaño de la imagen
-        Texture2D texture = new Texture2D(mat.Width, mat.Height, TextureFormat.RGBA32, false);
-        Mat rotatedMat = new Mat();
-        Cv2.Flip(mat, rotatedMat, FlipMode.X);
-
-        // Convertir cada píxel del Mat a un Color32 en la textura
-        for (int y = 0; y < rotatedMat.Height; y++)
-        {
-            for (int x = 0; x < rotatedMat.Width; x++)
+            float confidence = (float)detectionMat.get(i, 2)[0];
+            if (confidence > confidenceThreshold)
             {
-                Vec3b color = rotatedMat.At<Vec3b>(y, x);
-                texture.SetPixel(x, rotatedMat.Height - 1 - y, new Color32(color[2], color[1], color[0], 255));
+                float x1 = (float)detectionMat.get(i, 3)[0] * img.cols();
+                float y1 = (float)detectionMat.get(i, 4)[0] * img.rows();
+                float x2 = (float)detectionMat.get(i, 5)[0] * img.cols();
+                float y2 = (float)detectionMat.get(i, 6)[0] * img.rows();
+
+                float faceWidth = x2 - x1;
+                float faceHeight = y2 - y1;
+
+                // Tamaño del cuadrado: el mayor entre ancho y alto del bounding box
+                float squareSize = Mathf.Max(faceWidth, faceHeight);
+
+                // Centro del rostro
+                float centerX = x1 + faceWidth / 2f;
+                float centerY = y1 + faceHeight / 2f;
+
+                // Coordenadas del cuadrado centrado
+                float cropX = centerX - squareSize / 2f;
+                float cropY = centerY - squareSize / 2f;
+
+                // Asegurarse de que no se sale de la imagen
+                cropX = Mathf.Clamp(cropX, 0, img.cols() - squareSize);
+                cropY = Mathf.Clamp(cropY, 0, img.rows() - squareSize);
+
+                // Convertir a enteros para el rectángulo
+                int intCropX = Mathf.RoundToInt(cropX);
+                int intCropY = Mathf.RoundToInt(cropY);
+                int intSize = Mathf.RoundToInt(squareSize);
+
+                // Ajustar tamaño si está en el borde
+                intSize = Mathf.Min(intSize, img.cols() - intCropX);
+                intSize = Mathf.Min(intSize, img.rows() - intCropY);
+
+                // Recorte cuadrado
+                OpenCVForUnity.CoreModule.Rect cropRect = new OpenCVForUnity.CoreModule.Rect(intCropX, intCropY, intSize, intSize);
+                Mat faceRegion = new Mat(img, cropRect);
+
+                Mat squareFace = MakeSquare(faceRegion, OUTPUT_SIZE);
+
+                Texture2D resultTexture = new Texture2D(squareFace.cols(), squareFace.rows(), TextureFormat.RGBA32, false);
+                Utils.matToTexture2D(squareFace, resultTexture);
+
+                SaveTextureToStreamingAssets(resultTexture, "/recorteCara.png");
+
+                Image imgUI = GetComponent<Image>();
+                if (imgUI != null)
+                {
+                    imgUI.sprite = Sprite.Create(resultTexture, new UnityEngine.Rect(0, 0, resultTexture.width, resultTexture.height), new Vector2(0.5f, 0.5f));
+                }
+                detected++;
+                break;
             }
         }
 
-        texture.Apply();
-        return texture;
+        if (detected == 0)
+            Debug.LogWarning("No se detectaron caras con suficiente confianza.");
+    }
+    void SaveTextureToStreamingAssets(Texture2D texture, string fileName)
+    {
+        byte[] pngData = texture.EncodeToPNG();
+        if (pngData != null)
+        {
+            string savePath = Application.streamingAssetsPath + fileName;
+
+            // Guardar el archivo PNG
+            File.WriteAllBytes(savePath, pngData);
+
+            Debug.Log("Imagen guardada en: " + savePath);
+        }
+        else
+        {
+            Debug.LogError("No se pudo codificar la textura a PNG.");
+        }
     }
 
-    */
+    Mat MakeSquare(Mat src, int size)
+    {
+        int maxDim = Mathf.Max(src.cols(), src.rows());
+        Mat square = new Mat(new Size(maxDim, maxDim), src.type(), new Scalar(0, 0, 0));
+        int xOffset = (maxDim - src.cols()) / 2;
+        int yOffset = (maxDim - src.rows()) / 2;
+
+        src.copyTo(new Mat(square, new OpenCVForUnity.CoreModule.Rect(xOffset, yOffset, src.cols(), src.rows())));
+
+        Mat resized = new Mat();
+        Imgproc.resize(square, resized, new Size(size, size));
+        return resized;
+    }
+
 }

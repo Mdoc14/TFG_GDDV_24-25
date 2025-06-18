@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using TMPro;
 using Unity.Netcode;
+using Unity.Netcode.Components;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -10,7 +11,7 @@ public class CustomizationOptions
 {
     [HideInInspector]
     public string modelType;
-    
+
     public GameObject modelGameObject;
 
     public List<GameObject> hats;
@@ -132,7 +133,7 @@ public class CharacterCustomizer : NetworkBehaviour
         }
     }
 
-    
+
 
     private void InitializeCustomizationOptions(CustomizationOptions options)
     {
@@ -164,7 +165,7 @@ public class CharacterCustomizer : NetworkBehaviour
             foreach (GameObject currentOption in optionsList)
             {
 
-                if (currentOption != null && currentOption.activeSelf) 
+                if (currentOption != null && currentOption.activeSelf)
                 {
                     return optionsList.IndexOf(currentOption);
                 }
@@ -205,12 +206,49 @@ public class CharacterCustomizer : NetworkBehaviour
     public void SetCurrentOptions(CustomizationOptions newOptions)
     {
         if (currentOptions != null && currentOptions.modelGameObject != null)
-            currentOptions.modelGameObject.SetActive(false);
+            SetLayerRecursively(currentOptions.modelGameObject, LayerMask.NameToLayer("HiddenCharacter"));
 
         currentOptions = newOptions;
 
         if (currentOptions != null && currentOptions.modelGameObject != null)
-            currentOptions.modelGameObject.SetActive(true);
+            SetLayerRecursively(currentOptions.modelGameObject, LayerMask.NameToLayer("CharacterPreview"));
+
+        ActivateNetworkAnimatorForModel(currentOptions.modelGameObject);
+        GetComponent<HostBehaviour>().animator = currentOptions.modelGameObject.GetComponent<Animator>();
+    }
+    private void SetLayerRecursively(GameObject obj, int newLayer)
+    {
+        if (obj == null) return;
+
+        obj.layer = newLayer;
+        foreach (Transform child in obj.transform)
+        {
+            if (child != null)
+                SetLayerRecursively(child.gameObject, newLayer);
+        }
+    }
+    public void ActivateNetworkAnimatorForModel(GameObject modelGO)
+    {
+        var modelAnimator = modelGO.GetComponent<Animator>();
+        if (modelAnimator == null)
+        {
+            Debug.LogWarning("Model does not have an Animator component.");
+            return;
+        }
+
+        // Encuentra todos los NetworkAnimators del HostPlayer
+        foreach (var netAnim in GetComponents<NetworkAnimator>())
+        {
+            // Compara la referencia del Animator que tiene asignado
+            if (netAnim.Animator == modelAnimator)
+            {
+                netAnim.enabled = true;
+            }
+            else
+            {
+                netAnim.enabled = false;
+            }
+        }
     }
 
     private void ClearUI(GameObject content)
@@ -480,7 +518,7 @@ public class CharacterCustomizer : NetworkBehaviour
         ApplyPart(options.rightHands, options.currentRightHand);
         ApplyPart(options.leftHands, options.currentLeftHand);
     }
-   
+
 
 
     private void ApplyPart(List<GameObject> list, int index)
