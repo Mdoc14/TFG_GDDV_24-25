@@ -1,9 +1,18 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class UIManager : MonoBehaviour
 {
+    private void Start()
+    {
+        if (SceneManager.GetActiveScene().name.Equals("MainMenu"))
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+        }
+    }
     public Slider[] sliders;
     public void SaveSettings()
     {
@@ -11,7 +20,6 @@ public class UIManager : MonoBehaviour
         PlayerPrefs.SetFloat("generalVolume", sliders[0].value);
         PlayerPrefs.SetFloat("musicVolume", sliders[1].value);
         PlayerPrefs.SetFloat("sfxVolume", sliders[2].value);
-        PlayerPrefs.SetFloat("brightAmmount", sliders[3].value);
     }
     public void LoadSettings()
     {
@@ -20,7 +28,6 @@ public class UIManager : MonoBehaviour
             sliders[0].value = PlayerPrefs.GetFloat("generalVolume");
             sliders[1].value = PlayerPrefs.GetFloat("musicVolume");
             sliders[2].value = PlayerPrefs.GetFloat("sfxVolume");
-            sliders[3].value = PlayerPrefs.GetFloat("brightAmmount");
         }
         catch 
         { 

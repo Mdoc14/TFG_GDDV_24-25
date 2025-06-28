@@ -16,7 +16,7 @@ public class HelpScreenBehaviour : MonoBehaviour
         pageIndex++;
         if (pageIndex >= totalPages)
         {
-            pageIndex = 0; // Reset to first page
+            pageIndex = 0; 
         }
         ShowPage(pageIndex);
     }
@@ -25,7 +25,7 @@ public class HelpScreenBehaviour : MonoBehaviour
         pageIndex--;
         if (pageIndex < 0)
         {
-            pageIndex = totalPages - 1; // Reset to last page
+            pageIndex = totalPages - 1; 
         }
         ShowPage(pageIndex);
     }

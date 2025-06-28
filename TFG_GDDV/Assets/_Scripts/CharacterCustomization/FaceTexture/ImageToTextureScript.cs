@@ -5,13 +5,6 @@ using OpenCVForUnity.UnityUtils;
 using OpenCVForUnity.DnnModule;
 using System.IO;
 using UnityEngine.UI;
-using UnityEngine.Rendering;
-using Unity.Netcode;
-using System;
-using Unity.Collections;
-using System.Collections.Generic;
-using UnityEditor.PackageManager;
-using System.Collections;
 
 public class ImageToTextureScript : MonoBehaviour
 {

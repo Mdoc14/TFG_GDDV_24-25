@@ -8,7 +8,6 @@ using UnityEngine.Networking;
 using System;
 using UnityEngine.InputSystem;
 using TMPro;
-using System.Windows.Forms;
 using System.Linq;
 
 public class InteractableTV : NetworkBehaviour, IInteractable
@@ -28,10 +27,20 @@ public class InteractableTV : NetworkBehaviour, IInteractable
 
     public void OnPlayButtonPressed()
     {
-        Debug.Log("Confirm button clicked!");
-        if (!IsServer) return; // Solo el host puede lanzar el video
+        if (!IsServer) return; 
 
         string originalUrl = urlInputField.text.Trim();
+        if (string.IsNullOrEmpty(originalUrl))
+        {
+            errorText.text = "La URL ingresada está vacía";
+            return;
+        }
+        if (!originalUrl.Contains("drive.google.com"))
+        {
+            errorText.text = "Error procesando la URL de Google Drive. Asegúrate de que sea válida.";
+            return;
+        }
+        
         string url = ConvertGoogleDriveUrl(originalUrl);
 
         if (string.IsNullOrEmpty(url))
@@ -39,26 +48,13 @@ public class InteractableTV : NetworkBehaviour, IInteractable
             errorText.text = "La URL ingresada está vacía";
             return; 
         }
-        if (!originalUrl.Contains("drive.google.com"))
-        {
-            errorText.text = "Error procesando la URL de Google Drive. Asegúrate de que sea válida.";
-            return; 
-        }
-        ReturnToGame(); // Regresar al juego y ocultar el input
-        videoUploaderScreen.SetActive(false); // Ocultar la pantalla de carga de video
+        
+        ReturnToGame(); 
+        videoUploaderScreen.SetActive(false); 
 
         Debug.Log("Host ha ingresado URL: " + url);
-        // Usa un nombre de archivo basado en la URL codificada (sin caracteres inválidos)
-        string safeName = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(url));
-        safeName = new string(safeName.Where(char.IsLetterOrDigit).ToArray()); // Elimina caracteres raros
-        string fileName = safeName + ".mp4";
-        if (!fileName.EndsWith(".mp4"))
-        {
-            fileName += ".mp4"; // Si no tiene extensión .mp4, la agregamos manualmente
-        }
 
-
-        ShareVideoUrlClientRpc(url, fileName);
+        ShareVideoUrlClientRpc(url);
     }
 
 
@@ -78,10 +74,7 @@ public class InteractableTV : NetworkBehaviour, IInteractable
                 }
                 else if (originalUrl.Contains("/d/"))
                 {
-                    // Forma alternativa para extraer el ID manualmente
-                    int start = originalUrl.IndexOf("/d/") + 3;
-                    int end = originalUrl.IndexOf("/", start);
-                    string fileId = originalUrl.Substring(start, end - start);
+                    string fileId = ExtractDriveId(originalUrl);
                     return $"https://drive.google.com/uc?export=download&id={fileId}";
                 }
             }
@@ -91,29 +84,36 @@ public class InteractableTV : NetworkBehaviour, IInteractable
             }
         }
 
-        return originalUrl; // Si no es de Drive, la dejamos igual
+        return originalUrl; 
     }
-
+    private string ExtractDriveId(string url)
+    {
+        if (url.Contains("/d/"))
+        {
+            int start = url.IndexOf("/d/") + 3;
+            int end = url.IndexOf("/", start);
+            return url.Substring(start, end - start);
+        }
+        return null;
+    }
 
     [ClientRpc]
-    private void ShareVideoUrlClientRpc(string url, string fileName)
+    private void ShareVideoUrlClientRpc(string url)
     {
-        StartCoroutine(DownloadAndPrepare(url, fileName));
+        StartCoroutine(DownloadAndPrepare(url));
     }
 
-    private IEnumerator DownloadAndPrepare(string url, string fileName)
+    private IEnumerator DownloadAndPrepare(string url)
     {
         string videosFolderPath = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
         string baseFolderPath = Path.Combine(videosFolderPath, "RecuerDos_videos");
 
-        // --- Carpeta distinta según si eres Host o Cliente ---
         string roleFolder = IsServer ? "host" : "client";
         string newFolderPath = Path.Combine(baseFolderPath, roleFolder);
 
         if (!Directory.Exists(newFolderPath))
             Directory.CreateDirectory(newFolderPath);
 
-        // --- Aseguramos extensión ---
         string extension = ".mp4";
         string contentType = null;
 
@@ -133,19 +133,18 @@ public class InteractableTV : NetworkBehaviour, IInteractable
                     case "video/webm":
                         extension = ".webm";
                         break;
-                    case "video/ogg":
+                    case "video/ogv":
                         extension = ".ogv";
                         break;
                 }
             }
         }
 
-        if (Path.GetExtension(fileName) == string.Empty)
-            fileName += extension;
+        // Aquí se extrae el ID de la url de Google Drive para darle un nombre único al archivo que se guarda en local
+        string fileName = ExtractDriveId(url) + extension;
 
         string localPath = Path.Combine(newFolderPath, fileName);
 
-        // --- VERIFICAR SI YA EXISTE ---
         if (File.Exists(localPath))
         {
             Debug.Log($"[{roleFolder.ToUpper()}] El video ya existe: {localPath}");
@@ -175,7 +174,6 @@ public class InteractableTV : NetworkBehaviour, IInteractable
             }
         }
 
-        // --- PREPARAR el VideoPlayer ---
         videoPlayer.Stop();
         videoPlayer.source = VideoSource.Url;
         videoPlayer.url = "file://" + localPath;
@@ -215,17 +213,17 @@ public class InteractableTV : NetworkBehaviour, IInteractable
     public void Interact()
     {
         videoUploaderScreen.SetActive(true);
-        UnityEngine.Cursor.lockState = CursorLockMode.None; // Desbloquear el cursor
-        UnityEngine.Cursor.visible = true; // Hacer visible el cursor
-        // Aqui se deshabilita el inputSystem del jugador que es owner del runtime
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true; 
+        
         foreach (GameObject player in GameObject.FindGameObjectsWithTag("Player"))
         {
             if (player.GetComponent<NetworkObject>().IsOwner)
             {
-                playerUI = player.transform.Find("PlayerUI").gameObject; // Desactivar el UI del jugador
+                playerUI = player.transform.Find("PlayerUI").gameObject; 
                 playerUI.SetActive(false);
                 playerInput = player.GetComponent<PlayerInput>();
-                playerInput.enabled = false; // Deshabilitar el input del jugador
+                playerInput.enabled = false; 
                 break;
             }
         }
@@ -233,9 +231,9 @@ public class InteractableTV : NetworkBehaviour, IInteractable
 
     public void ReturnToGame() {
 
-        GameObject.Find("VideoUploaderScreen").SetActive(false);
-        UnityEngine.Cursor.lockState = CursorLockMode.Locked; // Bloquear el cursor
-        UnityEngine.Cursor.visible = false; // Hacer invisible el cursor
+        videoUploaderScreen.SetActive(false);
+        Cursor.lockState = CursorLockMode.Locked; // Bloquear el cursor
+        Cursor.visible = false; // Hacer invisible el cursor
         // Aqui se habilita el inputSystem del jugador que es owner del runtime
         if (playerInput != null && playerUI) { 
             playerInput.enabled = true; // Habilitar el input del jugador

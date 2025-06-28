@@ -108,9 +108,7 @@ public class InteractablePicture : NetworkBehaviour, IInteractable
                     FastBufferWriter.GetWriteSize(textureFileName) +
                     size;
 
-                Debug.Log($"[Debug] Chunk {index}, chunk data size: {size}, total writer size: {totalSize}");
                 using var writer = new FastBufferWriter(totalSize, Allocator.Temp);
-                Debug.Log($"[Debug] Writer capacity: {writer.Capacity}");
                 writer.WriteValueSafe(index);
                 writer.WriteValueSafe(totalChunks);
                 writer.WriteValueSafe(size);

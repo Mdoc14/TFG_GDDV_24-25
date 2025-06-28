@@ -3756,7 +3756,6 @@ MonoBehaviour:
   - {fileID: 1517047830}
   - {fileID: 1400580646}
   - {fileID: 44153}
-  - {fileID: 0}
 --- !u!4 &714212425
 Transform:
   m_ObjectHideFlags: 0
@@ -6502,13 +6501,37 @@ MonoBehaviour:
   WidgetConfiguration: {fileID: 11400000, guid: 094ba819853f254468c8c14483304ca7, type: 2}
   JoiningSession:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 1129261149}
+        m_TargetAssemblyTypeName: SceneLoader, Assembly-CSharp
+        m_MethodName: ChangeToGameScene
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
   JoinedSession:
     m_PersistentCalls:
       m_Calls: []
   FailedToJoinSession:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 1129261149}
+        m_TargetAssemblyTypeName: SceneLoader, Assembly-CSharp
+        m_MethodName: ChangeToMenuScene
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
   m_EnterSessionButton: {fileID: 973927630}
   m_SessionItemPrefab: {fileID: 3475559613996886167, guid: c5c817a177b6181478c5c9603a64b780, type: 3}
   m_ContentParent: {fileID: 1923219958}

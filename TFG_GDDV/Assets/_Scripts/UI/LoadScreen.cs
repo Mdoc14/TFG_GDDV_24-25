@@ -31,10 +31,9 @@ public class LoadScreen : MonoBehaviour
             }
         }
 
-        // Usamos un criterio más estable para saber si la cámara ya está "lista"
         if (localPlayerCam != null && localPlayerCam.targetTexture == null && localPlayerCam.enabled)
         {
-            // Oculta la pantalla de carga
+            // Se oculta la pantalla de carga
             gameObject.SetActive(false);
         }
     }

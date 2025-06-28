@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using TMPro;
 using Unity.Netcode;
@@ -86,13 +85,11 @@ public class CharacterCustomizer : NetworkBehaviour
             femaleCustomData.OnValueChanged += OnFemaleCustomDataChanged;
         }
 
-        // Esto es nuevo:
         ApplyCharacterData(maleOptions, maleData.Value);
         ApplyCharacterData(femaleOptions, femaleData.Value);
         ApplyCharacterData(maleCustomOptions, maleCustomData.Value);
         ApplyCharacterData(femaleCustomOptions, femaleCustomData.Value);
 
-        // Esto solo si eres owner
         if (IsOwner)
         {
             InitializeCustomizationOptions(maleOptions);
@@ -125,10 +122,8 @@ public class CharacterCustomizer : NetworkBehaviour
     {
         if (clientId == NetworkManager.Singleton.LocalClientId)
         {
-            // Cargamos la personalización una vez conectado
             LoadAllCustomization();
 
-            // Ya no hace falta el callback
             NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
         }
     }
@@ -236,10 +231,8 @@ public class CharacterCustomizer : NetworkBehaviour
             return;
         }
 
-        // Encuentra todos los NetworkAnimators del HostPlayer
         foreach (var netAnim in GetComponents<NetworkAnimator>())
         {
-            // Compara la referencia del Animator que tiene asignado
             if (netAnim.Animator == modelAnimator)
             {
                 netAnim.enabled = true;
@@ -278,7 +271,7 @@ public class CharacterCustomizer : NetworkBehaviour
 
         foreach (var pair in categoryMap)
         {
-            if (pair.Value.index != -2) // Solo si esa categoría está disponible en este modelo
+            if (pair.Value.index != -2) 
             {
                 GameObject btn = Instantiate(categoryButtonPrefab, categoriesContent.transform);
                 btn.GetComponentInChildren<TMP_Text>().text = pair.Key;
@@ -300,10 +293,8 @@ public class CharacterCustomizer : NetworkBehaviour
 
         activePartIndex = GetActiveIndex(parts);
 
-        // ¿La categoría tiene opción de "ninguno"?
         bool allowsEmpty = CategoryAllowsEmptyOption(parts);
 
-        // Si se permite la opción de quitar, añadir botón "X"
         if (allowsEmpty)
         {
             GameObject emptyBtn = Instantiate(partButtonPrefab, partsContent.transform);
@@ -324,7 +315,6 @@ public class CharacterCustomizer : NetworkBehaviour
                 activePartIndex = -1;
                 emptyButtonComp.interactable = false;
 
-                // Añade esto para actualizar el índice en currentOptions
                 if (parts == currentOptions.hats) currentOptions.currentHat = -1;
                 else if (parts == currentOptions.headphones) currentOptions.currentHeadphone = -1;
                 else if (parts == currentOptions.hair) currentOptions.currentHair = -1;
@@ -385,7 +375,6 @@ public class CharacterCustomizer : NetworkBehaviour
 
         activePartIndex = indexToActivate;
 
-        // Actualiza el índice en currentOptions 
         if (list == currentOptions.hats) currentOptions.currentHat = indexToActivate;
         else if (list == currentOptions.headphones) currentOptions.currentHeadphone = indexToActivate;
         else if (list == currentOptions.hair) currentOptions.currentHair = indexToActivate;
@@ -406,7 +395,6 @@ public class CharacterCustomizer : NetworkBehaviour
 
     private bool CategoryAllowsEmptyOption(List<GameObject> parts)
     {
-        // Solo categorías opcionales permiten desactivarse
         return parts == currentOptions.hats ||
                parts == currentOptions.headphones ||
                parts == currentOptions.hair ||
