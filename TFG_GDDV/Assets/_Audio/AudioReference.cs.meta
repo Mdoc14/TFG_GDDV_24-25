@@ -1,0 +1,13 @@
+fileFormatVersion: 2
+guid: 09419b254843b544f9aa02849e53a96c
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - mixerGeneral: {fileID: 24100000, guid: ec0a170317cd63d49b6a9dbae45d2feb, type: 2}
+  - clipBotonHover: {fileID: 8300000, guid: b73eace77a0a5734392aa183992b3584, type: 3}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

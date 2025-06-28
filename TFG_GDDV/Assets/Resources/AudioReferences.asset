@@ -1,0 +1,16 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 09419b254843b544f9aa02849e53a96c, type: 3}
+  m_Name: AudioReferences
+  m_EditorClassIdentifier: 
+  mixerGeneral: {fileID: 24100000, guid: ec0a170317cd63d49b6a9dbae45d2feb, type: 2}
+  clipBotonHover: {fileID: 8300000, guid: b73eace77a0a5734392aa183992b3584, type: 3}
