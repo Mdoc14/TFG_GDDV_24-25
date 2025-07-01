@@ -1,10 +1,15 @@
 ﻿using UnityEngine;
 using TMPro;
+using System.Collections;
+using Unity.Netcode;
+using UnityEngine.SceneManagement;
 
 public class LoadScreen : MonoBehaviour
 {
     public TextMeshProUGUI loadingText;
     public float animationSpeed = 0.5f;
+    private bool isLoading = true;
+    public float disconnectTimeout = 15f;
 
     private string baseText = "Cargando";
     private int state = 0;
@@ -14,6 +19,7 @@ public class LoadScreen : MonoBehaviour
     void Start()
     {
         StartCoroutine(TextAnimation());
+        StartCoroutine(TimeOutDisconnect());
     }
 
     void Update()
@@ -38,13 +44,27 @@ public class LoadScreen : MonoBehaviour
         }
     }
 
-    System.Collections.IEnumerator TextAnimation()
+    public IEnumerator TextAnimation()
     {
-        while (true)
+        while (isLoading)
         {
             loadingText.text = baseText + new string('.', state);
             state = (state + 1) % 4;
             yield return new WaitForSeconds(animationSpeed);
+        }
+    }
+    public IEnumerator TimeOutDisconnect()
+    {
+        yield return new WaitForSeconds(disconnectTimeout);
+        isLoading = false;
+        yield return new WaitForSeconds(1f);
+        loadingText.text = "Error, volviendo al menú principal";
+        loadingText.color = Color.red;
+        yield return new WaitForSeconds(4f);
+        if (gameObject.activeSelf)
+        {
+            NetworkManager.Singleton.Shutdown();
+            SceneManager.LoadScene("BootScene");
         }
     }
 }
